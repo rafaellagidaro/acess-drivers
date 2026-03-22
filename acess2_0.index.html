@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acess Drivers | UX Premium</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #F1C40F;
+            --dark: #000000;
+            --bg-app: #FFFFFF;
+            --text-main: #1A1A1A;
+            --gray-light: #F8F9FA;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        
+        body { 
+            background: #121212; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+
+        /* Container do App */
+        .app-shell {
+            width: 100%;
+            max-width: 414px;
+            height: 92vh;
+            background: var(--bg-app);
+            border-radius: 35px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.6);
+        }
+
+        /* Header com Logo Menor e Nome */
+        header {
+            background: var(--dark);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 4px solid var(--primary);
+            z-index: 100;
+        }
+
+        .logo-small {
+            width: 60px; /* Logo menor e mais discreto */
+            height: auto;
+            margin-bottom: 8px;
+        }
+
+        header h1 {
+            color: var(--primary);
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        /* Navegação de Telas */
+        .screen {
+            position: absolute;
+            top: 120px; /* Abaixo do header */
+            bottom: 0;
+            width: 100%;
+            display: none;
+            flex-direction: column;
+            background: var(--bg-app);
+            padding: 25px;
+            overflow-y: auto;
+            transition: all 0.4s ease-in-out;
+        }
+
+        .screen.active { display: flex; }
+
+        /* Estilo dos Componentes */
+        .input-group { margin-bottom: 20px; }
+        label { font-size: 11px; font-weight: 800; color: #888; text-transform: uppercase; margin-bottom: 8px; display: block; }
+        
+        select, input {
+            width: 100%;
+            padding: 16px;
+            border: 2px solid #EEE;
+            border-radius: 16px;
+            font-size: 15px;
+            font-weight: 600;
+            background: var(--gray-light);
+            outline: none;
+        }
+
+        .btn-primary {
+            background: var(--dark);
+            color: var(--primary);
+            padding: 20px;
+            border-radius: 18px;
+            border: none;
+            font-weight: 900;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            text-transform: uppercase;
+            margin-top: 10px;
+            transition: 0.3s;
+        }
+
+        /* Tela de Busca (Radar) */
+        #screen-search {
+            background: var(--dark);
+            color: var(--primary);
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            top: 0; /* Cobre tudo menos o header se desejar */
+            height: 100%;
+            z-index: 200;
+        }
+
+        .radar-pulse {
+            width: 120px; height: 120px; border: 4px solid var(--primary);
+            border-radius: 50%; animation: pulse-ring 1.5s infinite;
+            display: flex; justify-content: center; align-items: center; margin-bottom: 30px;
+        }
+        @keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 rgba(241,196,15,0.4); } 100% { box-shadow: 0 0 0 40px rgba(241,196,15,0); } }
+
+        /* Mapa Real */
+        #map-box { flex: 1; width: 100%; border-radius: 20px; overflow: hidden; margin-bottom: 20px; border: 1px solid #EEE; }
+        
+        .driver-info-card {
+            background: var(--dark);
+            color: white;
+            padding: 20px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .status-badge {
+            background: var(--primary);
+            color: black;
+            font-size: 10px;
+            font-weight: 900;
+            padding: 4px 10px;
+            border-radius: 8px;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-shell">
+    <header>
+        <img src="acessdriverslogo_.png" alt="Logo" class="logo-small">
+        <h1>Acess Drivers</h1>
+    </header>
+
+    <div id="screen-home" class="screen active">
+        <div class="input-group">
+            <label>O que você precisa?</label>
+            <select id="pcd-select">
+                <option value="cadeira_motorizada">Cadeira Motorizada (Rampa)</option>
+                <option value="cadeira_manual">Cadeira Manual</option>
+                <option value="visual">Deficiente Visual (Cão Guia)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Destino em Caçapava</label>
+            <input type="text" id="dest-input" placeholder="Para onde vamos?">
+        </div>
+
+        <div style="background: #FFF9E6; padding: 15px; border-radius: 12px; border: 1px solid var(--primary); margin-bottom: 20px;">
+            <p style="font-size: 12px; font-weight: 700;">Segurança Ativa: <span style="color: #27AE60;">PIN 4492</span></p>
+        </div>
+
+        <button class="btn-primary" onclick="AcessApp.request()">Solicitar Agora</button>
+    </div>
+
+    <div id="screen-search" class="screen">
+        <div class="radar-pulse"><i class="fas fa-search-location fa-3x"></i></div>
+        <h2>Buscando Motorista...</h2>
+        <p style="opacity: 0.7; font-size: 14px; margin-top: 10px;">Verificando veículos adaptados próximos</p>
+    </div>
+
+    <div id="screen-map" class="screen">
+        <div id="map-box"></div>
+        
+        <div class="driver-info-card">
+            <div style="width: 50px; height: 50px; background: #333; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                <i class="fas fa-user-check fa-xl" style="color: var(--primary);"></i>
+            </div>
+            <div style="flex: 1;">
+                <h4 style="color: var(--primary);">Ricardo Silva</h4>
+                <p style="font-size: 11px; opacity: 0.8;">Spin Prata • R-PCD-2026</p>
+                <div class="status-badge" style="display: inline-block; margin-top: 5px;">Motorista Verificado</div>
+            </div>
+        </div>
+        
+        <button class="btn-primary" style="background: #333; margin-top: 15px;" onclick="location.reload()">Cancelar Viagem</button>
+    </div>
+</div>
+
+<script>
+const AcessApp = {
+    coords: [-23.1023, -45.7072], // Centro de Caçapava
+
+    request() {
+        const dest = document.getElementById('dest-input').value;
+        if(!dest) return alert("Por favor, informe o destino.");
+
+        // Muda para tela de busca
+        this.switchScreen('screen-search');
+        this.speak("Iniciando busca segura por motoristas treinados. Ricardo Silva está a caminho com um veículo adaptado.");
+
+        // Simula o tempo de busca
+        setTimeout(() => this.showMap(), 4000);
+    },
+
+    showMap() {
+        this.switchScreen('screen-map');
+        
+        // Inicializa o Mapa (Leaflet)
+        const map = L.map('map-box', { zoomControl: false }).setView(this.coords, 15);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+        
+        // Marcadores
+        L.marker(this.coords).addTo(map).bindPopup('Sua localização').openPopup();
+        L.marker([this.coords[0] + 0.003, this.coords[1] + 0.003], {
+            icon: L.divIcon({className: 'car-icon', html: '<i class="fas fa-car-side fa-2x" style="color: #000; filter: drop-shadow(0 2px 4px gold);"></i>'})
+        }).addTo(map);
+
+        this.speak("Motorista localizado. Ele chega em 4 minutos. Verifique o PIN de segurança.");
+    },
+
+    switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    },
+
+    speak(t) {
+        const s = new SpeechSynthesisUtterance(t);
+        s.lang = 'pt-BR';
+        window.speechSynthesis.speak(s);
+    }
+};
+</script>
+
+</body>
+</html>
