@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uber Access | Mobilidade Inclusiva</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --uber-black: #000000;
+            --access-yellow: #F1C40F; /* Alto contraste */
+            --bg-gray: #F6F6F6;
+            --text-dark: #333;
+            --white: #FFFFFF;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background-color: var(--bg-gray);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* Container Principal do App */
+        .app-shell {
+            width: 100%;
+            max-width: 450px;
+            background: var(--white);
+            height: 90vh;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        header {
+            background: var(--uber-black);
+            color: var(--access-yellow);
+            padding: 25px;
+            text-align: center;
+        }
+
+        header h1 { margin: 0; font-size: 24px; letter-spacing: 1px; }
+
+        /* Formulário Inclusivo */
+        .form-content {
+            padding: 20px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .input-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: var(--uber-black);
+        }
+
+        select, input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #DDD;
+            border-radius: 12px;
+            font-size: 16px;
+            background: #FAFAFA;
+            transition: 0.3s;
+        }
+
+        select:focus, input:focus {
+            border-color: var(--access-yellow);
+            outline: none;
+            background: #FFF;
+        }
+
+        /* Botão Principal - Gigante para facilitar o toque */
+        .btn-confirm {
+            background: var(--uber-black);
+            color: var(--access-yellow);
+            border: none;
+            padding: 20px;
+            width: 90%;
+            margin: 0 auto 20px;
+            border-radius: 15px;
+            font-size: 18px;
+            font-weight: 900;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        .btn-confirm:active { transform: scale(0.98); }
+
+        /* Monitor de Dados (Invisível para o usuário, mas ativo para o Dev) */
+        #data-monitor {
+            background: #222;
+            color: #0F0;
+            padding: 10px;
+            font-size: 11px;
+            font-family: monospace;
+            max-height: 100px;
+            overflow-y: scroll;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-shell" role="main">
+    <header>
+        <h1>UBER ACCESS <i class="fas fa-wheelchair"></i></h1>
+    </header>
+
+    <div class="form-content">
+        <div class="input-group">
+            <label for="pcd-profile">Selecione sua Necessidade:</label>
+            <select id="pcd-profile" aria-label="Escolha seu perfil de acessibilidade">
+                <option value="cadeira_manual">Cadeira de Rodas Manual</option>
+                <option value="cadeira_motorizada">Cadeira Motorizada (Requer Rampa)</option>
+                <option value="deficiente_visual">Deficiente Visual (Com Cão Guia)</option>
+                <option value="mobilidade_reduzida">Mobilidade Reduzida / Idoso</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label for="dest-input">Destino Final:</label>
+            <input type="text" id="dest-input" placeholder="Para onde vamos?" aria-required="true">
+        </div>
+
+        <div class="input-group">
+            <label for="obs">Observação para o Motorista:</label>
+            <input type="text" id="obs" placeholder="Ex: Estarei na rampa lateral">
+        </div>
+    </div>
+
+    <button class="btn-confirm" id="confirm-ride">Solicitar Viagem Adaptada</button>
+
+    <div id="data-monitor">
+        <strong>Logs do Sistema:</strong>
+        <pre id="log-view">// Aguardando interação...</pre>
+    </div>
+</div>
+
+<script>
+    /**
+     * UBER ACCESS - ENGINE DE INTELIGÊNCIA E TAGGING
+     */
+    const UberAccess = {
+        sessionStart: Date.now(),
+
+        init: function() {
+            window.dataLayer = window.dataLayer || [];
+            this.bindEvents();
+            console.log("Sistema Uber Access Iniciado.");
+        },
+
+        // Captura a geolocalização simulada (Em prod usaria navigator.geolocation)
+        getGeoLocation: function() {
+            return "Lat: -23.5505, Long: -46.6333"; // Exemplo SP
+        },
+
+        bindEvents: function() {
+            const btn = document.getElementById('confirm-ride');
+            btn.addEventListener('click', () => this.processRequest());
+        },
+
+        processRequest: function() {
+            const profile = document.getElementById('pcd-profile').value;
+            const destination = document.getElementById('dest-input').value;
+            const timeDiff = (Date.now() - this.sessionStart) / 1000;
+
+            if (!destination) {
+                alert("Por favor, digite seu destino.");
+                return;
+            }
+
+            // Payload Profissional para o DataLayer (Padrão Cognizant/GA4)
+            const payload = {
+                'event': 'request_ride_pcd',
+                'ride_info': {
+                    'pcd_category': profile,
+                    'destination': destination,
+                    'time_on_screen_sec': timeDiff.toFixed(2),
+                    'location_origin': this.getGeoLocation()
+                },
+                'hardware_config': {
+                    'need_ramp': profile === 'cadeira_motorizada',
+                    'allow_service_animal': profile === 'deficiente_visual'
+                }
+            };
+
+            // 1. Envia para o DataLayer
+            window.dataLayer.push(payload);
+
+            // 2. Atualiza Monitor na Tela
+            document.getElementById('log-view').innerText = JSON.stringify(payload, null, 2);
+
+            // 3. Acessibilidade: Feedback de Voz
+            this.voiceFeedback(profile);
+
+            alert("Solicitação enviada! Procurando motorista capacitado próximo a você.");
+        },
+
+        voiceFeedback: function(profile) {
+            const speech = new SpeechSynthesisUtterance();
+            speech.lang = 'pt-BR';
+            speech.text = `Solicitando veículo adaptado para ${profile.replace('_', ' ')}. Aguarde um momento.`;
+            window.speechSynthesis.speak(speech);
+        }
+    };
+
+    // Rodar o App
+    UberAccess.init();
+</script>
+
+</body>
+</html>
