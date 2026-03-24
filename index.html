@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Acess Drivers - Mobilidade Especializada</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    
+    <style>
+        :root {
+            --primary: #F1C40F; /* Amarelo Acess */
+            --dark: #1A1A1A;
+            --bg-app: #FFFFFF;
+            --text-main: #333333;
+            --gray-light: #F8F9FA;
+            --success: #27AE60;
+            --error: #E74C3C;
+            --border-color: #EEEEEE;
+        }
+
+        /* MODO NOTURNO AUTOMÁTICO */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-app: #121212;
+                --text-main: #E0E0E0;
+                --gray-light: #1E1E1E;
+                --border-color: #333;
+                --dark: #000;
+            }
+            body { background: #000; }
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
+        
+        body { 
+            background-color: #f0f0f0; 
+            display: flex; 
+            justify-content: center; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+
+        .app-shell {
+            width: 100%;
+            max-width: 450px;
+            background: var(--bg-app);
+            color: var(--text-main);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 30px rgba(0,0,0,0.2);
+        }
+
+        header { 
+            padding: 15px 20px; 
+            text-align: center; 
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Telas */
+        .screen { display: none; flex-direction: column; padding: 20px; flex: 1; overflow-y: auto; }
+        .screen.active { display: flex; }
+
+        /* Utilitários de UI */
+        .btn-primary { 
+            background: var(--primary); border: none; padding: 16px; border-radius: 14px;
+            font-weight: 900; cursor: pointer; font-size: 16px; color: #000;
+            transition: transform 0.1s; width: 100%; margin-top: 10px;
+        }
+        .btn-primary:active { transform: scale(0.97); }
+
+        .input-group { margin-bottom: 15px; }
+        label { font-size: 13px; font-weight: 700; margin-bottom: 5px; display: block; opacity: 0.8; }
+        input { 
+            width: 100%; padding: 15px; border-radius: 12px; border: 1px solid var(--border-color);
+            background: var(--gray-light); color: var(--text-main); outline: none;
+        }
+
+        /* Cards de Categoria */
+        .category-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .cat-card { 
+            padding: 15px; border: 2px solid var(--border-color); border-radius: 15px;
+            text-align: center; cursor: pointer; background: var(--gray-light); transition: 0.2s;
+        }
+        .cat-card.active { border-color: var(--primary); background: #FFF9E6; color: #000; }
+        .cat-card i { font-size: 20px; margin-bottom: 5px; }
+
+        /* Segurança e Pânico */
+        .panic-container { position: absolute; bottom: 90px; left: 20px; z-index: 999; display: none; }
+        .btn-panic { 
+            width: 65px; height: 65px; background: #000; border: 3px solid var(--error);
+            color: var(--error); border-radius: 50%; font-size: 10px; font-weight: 900;
+            display: flex; justify-content: center; align-items: center; text-align: center;
+            user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Toast */
+        #toast {
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
+            background: var(--dark); color: white; padding: 12px 25px; border-radius: 30px;
+            transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 10000;
+            font-weight: 600; font-size: 14px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        #toast.show { top: 20px; }
+
+        /* Mapa e Info */
+        #map-box { height: 250px; border-radius: 18px; margin-bottom: 15px; overflow: hidden; background: #eee; border: 1px solid var(--border-color); }
+        .driver-card { background: var(--gray-light); padding: 15px; border-radius: 15px; border: 1px solid var(--border-color); }
+        
+        /* Animação SOS */
+        @keyframes panic-flash { 0% { background: var(--bg-app); } 50% { background: var(--error); } 100% { background: var(--bg-app); } }
+        .panic-active { animation: panic-flash 0.4s infinite; }
+        
+        /* Barra de Busca */
+        .search-bar-container { width: 100%; height: 6px; background: #eee; border-radius: 10px; margin: 20px 0; overflow: hidden; }
+        #search-progress { width: 0%; height: 100%; background: var(--primary); transition: width 4s linear; }
+
+    </style>
+</head>
+<body>
+
+<div class="app-shell" id="app-body">
+    <div id="toast">Mensagem</div>
+
+    <header>
+        <i class="fas fa-wheelchair" style="color:var(--primary)"></i>
+        <h2 style="font-weight: 900; letter-spacing: -1px;">ACESS <span style="color:var(--primary)">DRIVERS</span></h2>
+    </header>
+
+    <section id="screen-home" class="screen active">
+        <div class="input-group">
+            <label>Destino em Caçapava</label>
+            <input type="text" id="dest-input" placeholder="Para onde vamos?">
+        </div>
+
+        <label>Tipo de Veículo</label>
+        <div class="category-grid">
+            <div class="cat-card active" onclick="AcessApp.setCategory(this, 'Rampa')">
+                <i class="fas fa-truck-ramp-box"></i><br><strong>Rampa</strong>
+            </div>
+            <div class="cat-card" onclick="AcessApp.setCategory(this, 'Visual')">
+                <i class="fas fa-dog"></i><br><strong>Visual</strong>
+            </div>
+        </div>
+
+        <div style="background: var(--gray-light); padding: 15px; border-radius: 12px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <p style="font-size: 11px; font-weight: 700;">PREÇO ESTIMADO</p>
+                <h3 id="price-tag">R$ 0,00</h3>
+            </div>
+            <i class="fas fa-info-circle" style="opacity: 0.5;"></i>
+        </div>
+
+        <button class="btn-primary" onclick="AcessApp.request()">SOLICITAR AGORA</button>
+    </section>
+
+    <section id="screen-search" class="screen" style="text-align: center; justify-content: center;">
+        <i class="fas fa-circle-notch fa-spin fa-3x" style="color: var(--primary); margin-bottom: 20px;"></i>
+        <h2>Buscando Motorista...</h2>
+        <p style="opacity: 0.7; margin-top: 10px;">Localizando veículo com rampa próximo</p>
+        <div class="search-bar-container"><div id="search-progress"></div></div>
+    </section>
+
+    <section id="screen-map" class="screen">
+        <div id="map-box"></div>
+        
+        <div class="driver-card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h4>Ricardo Silva</h4>
+                    <p style="font-size: 13px; opacity: 0.7;">Chevrolet Spin Prata • ABC-1234</p>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: var(--primary); color: #000; padding: 4px 8px; border-radius: 5px; font-weight: 900;">PIN 4492</span>
+                </div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+            <button class="btn-primary" style="background:#eee; margin:0; font-size: 13px;" onclick="AcessApp.shareRide()">
+                <i class="fas fa-share-nodes"></i> Compartilhar
+            </button>
+            <button class="btn-primary" style="background:#eee; margin:0; font-size: 13px;" onclick="AcessApp.speakPin()">
+                <i class="fas fa-volume-up"></i> Ouvir PIN
+            </button>
+        </div>
+
+        <button class="btn-primary" style="background: var(--success); color: white; margin-top: 20px;" onclick="location.reload()">CHEGUEI AO DESTINO</button>
+    </section>
+
+    <div id="panic-ui" class="panic-container">
+        <button class="btn-panic" 
+                onmousedown="AcessApp.startPanic()" onmouseup="AcessApp.stopPanic()"
+                ontouchstart="AcessApp.startPanic()" ontouchend="AcessApp.stopPanic()">
+            SEGURE<br>PÂNICO
+        </button>
+    </div>
+</div>
+
+<script>
+const AcessApp = {
+    category: 'Rampa',
+    panicTimer: null,
+    coords: [-23.1023, -45.7072], // Caçapava
+    map: null,
+
+    init() {
+        this.speak("Acess Drivers Caçapava iniciado. Para onde vamos hoje?");
+        this.checkBattery();
+
+        // Cálculo de preço dinâmico
+        document.getElementById('dest-input').addEventListener('input', (e) => {
+            const len = e.target.value.length;
+            const price = len > 3 ? (12 + len * 0.85).toFixed(2) : "0,00";
+            document.getElementById('price-tag').innerText = `R$ ${price}`;
+        });
+    },
+
+    setCategory(el, cat) {
+        document.querySelectorAll('.cat-card').forEach(c => c.classList.remove('active'));
+        el.classList.add('active');
+        this.category = cat;
+        this.speak("Categoria " + cat + " selecionada.");
+        if("vibrate" in navigator) navigator.vibrate(30);
+    },
+
+    request() {
+        const dest = document.getElementById('dest-input').value;
+        if(dest.length < 3) return this.showToast("Por favor, digite o destino.");
+
+        this.switchScreen('screen-search');
+        this.speak("Buscando motorista especializado para " + dest);
+        
+        // Animação da barra
+        setTimeout(() => document.getElementById('search-progress').style.width = '100%', 100);
+
+        // Simula busca offline/online
+        setTimeout(() => this.initMap(), 4500);
+    },
+
+    initMap() {
+        this.switchScreen('screen-map');
+        document.getElementById('panic-ui').style.display = 'block';
+        if("vibrate" in navigator) navigator.vibrate([200, 100, 200]);
+        this.speak("Motorista encontrado. Ricardo Silva chega em 4 minutos em um veículo adaptado.");
+
+        setTimeout(() => {
+            if(!this.map) {
+                this.map = L.map('map-box', { zoomControl: false }).setView(this.coords, 15);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(this.map);
+                L.marker(this.coords).addTo(this.map).bindPopup("Você está aqui").openPopup();
+            }
+        }, 300);
+    },
+
+    shareRide() {
+        const text = "Estou viajando com Acess Drivers Caçapava. Acompanhe minha segurança! PIN: 4492";
+        if (navigator.share) {
+            navigator.share({ title: 'Acess Drivers', text: text, url: window.location.href });
+        } else {
+            this.showToast("Link de segurança copiado!", "success");
+        }
+    },
+
+    startPanic() {
+        if("vibrate" in navigator) navigator.vibrate(100);
+        this.showToast("MANTENHA PRESSIONADO!", "error");
+        this.panicTimer = setTimeout(() => {
+            document.getElementById('app-body').classList.add('panic-active');
+            this.speak("PÂNICO ATIVADO. Localização enviada para a central e para a polícia.");
+            if("vibrate" in navigator) navigator.vibrate([500, 200, 500]);
+        }, 3000);
+    },
+
+    stopPanic() {
+        clearTimeout(this.panicTimer);
+        document.getElementById('app-body').classList.remove('panic-active');
+    },
+
+    async checkBattery() {
+        if ('getBattery' in navigator) {
+            const b = await navigator.getBattery();
+            if(b.level < 0.20 && !b.charging) {
+                this.showToast("Bateria Baixa! 🪫", "error");
+                this.speak("Aviso: sua bateria está baixa. Conecte um carregador para sua segurança.");
+            }
+        }
+    },
+
+    switchScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    },
+
+    showToast(msg, type) {
+        const t = document.getElementById('toast');
+        t.innerText = msg;
+        t.style.background = type === 'success' ? '#27AE60' : '#1A1A1A';
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 3000);
+    },
+
+    speak(txt) {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(txt);
+            u.lang = 'pt-BR';
+            u.rate = 0.9;
+            window.speechSynthesis.speak(u);
+        }
+    },
+
+    speakPin() {
+        this.speak("Seu código de segurança é quatro, quatro, nove, dois.");
+    }
+};
+
+window.onload = () => AcessApp.init();
+</script>
+
+</body>
+</html>
